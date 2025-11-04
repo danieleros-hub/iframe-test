@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.2.0/css/all.css'>
+    <link rel='stylesheet' href='https://use.fontawesome.com/releases/v5.2.0/css/fontawesome.css'>
+
+    <title>Login - Iframe Test</title>
+    <style>
+       @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+			font-family: Raleway, sans-serif;
+		}
+
+		body {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		}
+
+		.container {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			padding: 20px;
+		}
+
+		.screen {
+			background: white;
+			border-radius: 10px;
+			box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+			position: relative;
+		}
+
+		.login {
+			padding: 40px;
+			max-width: 400px;
+		}
+
+		.login h2 {
+			margin-bottom: 20px;
+			color: #333;
+		}
+
+		.login__field {
+			padding: 20px 0px;
+			position: relative;
+		}
+
+		.login__icon {
+			position: absolute;
+			top: 30px;
+			color: #667eea;
+		}
+
+		.login__input {
+			border: none;
+			border-bottom: 2px solid #D1D1D4;
+			background: none;
+			padding: 10px;
+			padding-left: 24px;
+			font-weight: 700;
+			width: 100%;
+			transition: .2s;
+		}
+
+		.login__input:active,
+		.login__input:focus,
+		.login__input:hover {
+			outline: none;
+			border-bottom-color: #667eea;
+		}
+
+		.login__submit{
+			font-size: 14px;
+			background: #667eea;
+			color: white;
+			font-size: 14px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			border: none;
+			border-radius: 26px;
+			margin-top: 30px;
+			padding: 16px 20px;
+			width: 100%;
+			transition: .2s;
+		}
+
+		.login__submit:hover {
+			background: #764ba2;
+		}
+
+		.login__submit:disabled{
+			background: gray;
+			opacity: .5;
+			cursor: not-allowed;
+		}
+
+		.checkbox-wrapper {
+			margin-top: 20px;
+			font-size: 14px;
+		}
+
+		.checkbox-wrapper input {
+			margin-right: 8px;
+		}
+
+		.checkbox-wrapper a {
+			color: #667eea;
+			text-decoration: none;
+		}
+
+		.checkbox-wrapper a:hover {
+			text-decoration: underline;
+		}
+
+		.err-msg{
+			color: #f44336;
+			margin-top: 10px;
+			font-size: 14px;
+		}
+
+		.debug-info {
+			background: #f0f0f0;
+			padding: 15px;
+			border-radius: 5px;
+			margin-top: 20px;
+			font-size: 12px;
+			font-family: monospace;
+		}
+
+		.debug-info div {
+			margin-bottom: 5px;
+		}
+
+		.debug-info strong {
+			color: #667eea;
+		}
+
+		.success-msg {
+			color: #4CAF50;
+			margin-top: 10px;
+			font-size: 14px;
+		}
+    </style>
+</head>
+<body>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const session = urlParams.get('token');
+        const parentOrigin = urlParams.get('origin');
+        let isInIframe = window.parent && window.parent !== window;
+
+        // Debug logging
+        function debugLog(message, type = 'info') {
+            console.log(`[IFRAME ${type.toUpperCase()}] ${message}`);
+        }
+
+        debugLog(`Is in iframe: ${isInIframe}`);
+        debugLog(`Parent origin: ${parentOrigin}`);
+        debugLog(`Current origin: ${window.location.origin}`);
+
+        if (session) {
+            debugLog(`Token received: ${session}`);
+            const decodedSession = decodeURI(session);
+
+            // Send token to parent via postMessage
+            if (isInIframe && parentOrigin) {
+                debugLog('Sending LOGIN_SUCCESS to parent');
+
+                window.parent.postMessage({
+                    type: 'LOGIN_SUCCESS',
+                    token: decodedSession,
+                    redirectUrl: '/'
+                }, parentOrigin);
+
+                // Try to redirect parent (may be blocked if cross-origin)
+                try {
+                    debugLog('Attempting to redirect parent window');
+                    window.top.location.href = parentOrigin;
+                } catch (e) {
+                    debugLog('Cannot redirect parent (cross-origin restriction)');
+                    debugLog('Parent will handle redirect via postMessage');
+
+                    // Show success message
+                    setTimeout(() => {
+                        document.getElementById("successMsg").innerHTML =
+                            "✅ Login successful! Token sent to parent window.";
+                    }, 100);
+                }
+            } else {
+                // Fallback for non-iframe usage (direct access)
+                debugLog('Not in iframe, using fallback method');
+                alert(`Login successful! Token: ${decodedSession}`);
+                // In real scenario, you'd set cookie or redirect here
+            }
+        }
+
+		window.onload = function(){
+			debugLog('Window loaded');
+
+			const error = urlParams.get('error');
+
+			if(error){
+				document.getElementById("errMsg").innerHTML = "Invalid username or password";
+			}
+
+			// Update debug info
+			updateDebugInfo();
+
+			initAcceptAgreementCheckbox();
+
+			// Listen for messages from parent
+			window.addEventListener('message', (event) => {
+				debugLog(`Received message from: ${event.origin}`);
+
+				if (!parentOrigin || event.origin !== parentOrigin) {
+					debugLog('Message from untrusted origin, ignoring');
+					return;
+				}
+
+				debugLog(`Message type: ${event.data.type}`);
+
+				if (event.data.type === 'AGREEMENT_STATE_RESPONSE') {
+					debugLog(`Agreement state received: ${event.data.accepted}`);
+					const accepted = event.data.accepted;
+					if (accepted) {
+						document.getElementById("accept-agreement-id").checked = true;
+						document.getElementById('login-submit-id').disabled = false;
+					} else {
+						document.getElementById('login-submit-id').disabled = true;
+					}
+				}
+
+				if (event.data.type === 'TEST_MESSAGE') {
+					debugLog(`Test message received: ${event.data.message}`);
+					alert(`Received from parent: ${event.data.message}`);
+				}
+			});
+		};
+
+		function updateDebugInfo() {
+			document.getElementById('debug-iframe-status').textContent = isInIframe ? 'Yes' : 'No';
+			document.getElementById('debug-parent-origin').textContent = parentOrigin || 'Not provided';
+			document.getElementById('debug-current-origin').textContent = window.location.origin;
+		}
+
+		function initAcceptAgreementCheckbox(){
+			debugLog('Initializing agreement checkbox');
+
+			// Request agreement state from parent
+			if (isInIframe && parentOrigin) {
+				debugLog('Requesting agreement state from parent');
+				window.parent.postMessage({
+					type: 'REQUEST_AGREEMENT_STATE'
+				}, parentOrigin);
+			} else {
+				// Fallback: just enable the button
+				debugLog('Not in iframe, enabling button by default');
+				document.getElementById('login-submit-id').disabled = true;
+			}
+		}
+
+		function acceptAgreementChanged(acceptAgreement){
+			debugLog(`Agreement checkbox changed: ${acceptAgreement.checked}`);
+
+			if(acceptAgreement.checked){
+				// Notify parent about agreement acceptance
+				if (isInIframe && parentOrigin) {
+					debugLog('Sending AGREEMENT_ACCEPTED to parent');
+					window.parent.postMessage({
+						type: 'AGREEMENT_ACCEPTED',
+						accepted: true
+					}, parentOrigin);
+				}
+				document.getElementById('login-submit-id').disabled = false;
+			}
+			else{
+				if (isInIframe && parentOrigin) {
+					debugLog('Sending AGREEMENT_REJECTED to parent');
+					window.parent.postMessage({
+						type: 'AGREEMENT_ACCEPTED',
+						accepted: false
+					}, parentOrigin);
+				}
+				document.getElementById('login-submit-id').disabled = true;
+			}
+		}
+
+		function submitLogin(){
+			if(document.getElementById("accept-agreement-id").checked){
+				debugLog('Form submitted');
+
+				// For testing purposes, simulate a successful login
+				const username = document.getElementsByName('httpd_username')[0].value;
+				const password = document.getElementsByName('httpd_password')[0].value;
+
+				if (!username || !password) {
+					document.getElementById("errMsg").innerHTML = "Please enter username and password";
+					return;
+				}
+
+				// Simulate login by redirecting with token parameter
+				// In real scenario, this would POST to /dologin
+				const fakeToken = btoa(username + ':' + Date.now());
+				const separator = window.location.href.includes('?') ? '&' : '?';
+				window.location.href = window.location.pathname + '?token=' +
+					encodeURIComponent(fakeToken) +
+					(parentOrigin ? '&origin=' + encodeURIComponent(parentOrigin) : '');
+
+				// Uncomment below to use real form submission
+				// document.getElementById("loginForm").submit();
+			}
+		}
+    </script>
+
+	<div class="container">
+		<div class="screen">
+			<form class="login" method="POST" action="/dologin" id="loginForm">
+				<h2>🔐 Sign In</h2>
+
+				<div class="login__field">
+					<i class="login__icon fas fa-user"></i>
+					<input type="text" name="httpd_username" class="login__input" placeholder="Username" value="testuser">
+				</div>
+				<div class="login__field">
+					<i class="login__icon fas fa-lock"></i>
+					<input type="password" name="httpd_password" class="login__input" placeholder="Password" value="password123">
+				</div>
+
+				<div class="checkbox-wrapper">
+					<input type="checkbox" id="accept-agreement-id" name="accept-agreement" onchange="acceptAgreementChanged(this)"/>
+					<label for="accept-agreement-id">I accept the <a href="#" onclick="alert('Terms of Service'); return false;">Terms of Services</a></label>
+				</div>
+				<p style="color: #666; font-size: 0.8em; margin-top: 10px;">
+					⚠️ Terms of Service updated on May 13, 2025 - please review the changes.
+				</p>
+
+				<div id="errMsg" class="err-msg"></div>
+				<div id="successMsg" class="success-msg"></div>
+
+				<input id="login-submit-id" class="login__submit" type="button" onclick="submitLogin()" value="Sign In">
+
+				<div class="debug-info">
+					<div><strong>Debug Info:</strong></div>
+					<div>In iframe: <span id="debug-iframe-status">-</span></div>
+					<div>Parent origin: <span id="debug-parent-origin">-</span></div>
+					<div>Current origin: <span id="debug-current-origin">-</span></div>
+				</div>
+			</form>
+		</div>
+	</div>
+</body>
+</html>
