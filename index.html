@@ -260,7 +260,7 @@
             log(`Received message from: ${event.origin}`, 'info');
 
             // Verify origin
-            if (event.origin !== trustedOrigin) {
+            if (event.origin !== trustedOrigin || event.origin !== 'https://leoshape-auth.leopoly.com') {
                 log(`⚠️ BLOCKED: Message from untrusted origin: ${event.origin}`, 'warning');
                 return;
             }
