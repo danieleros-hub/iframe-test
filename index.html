@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Parent Page - Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .config {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .config label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .config input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .config button {
+            background: #0086ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .config button:hover {
+            background: #0063bd;
+        }
+
+        .iframe-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #00ff00;
+            padding-left: 10px;
+        }
+
+        .log-entry.success {
+            border-left-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .log-entry.info {
+            border-left-color: #00aaff;
+            color: #00aaff;
+        }
+
+        .log-entry.warning {
+            border-left-color: #ffaa00;
+            color: #ffaa00;
+        }
+
+        .log-entry.error {
+            border-left-color: #ff0000;
+            color: #ff0000;
+        }
+
+        .status {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .status-label {
+            font-weight: bold;
+        }
+
+        .status-value {
+            font-family: monospace;
+            color: #0086ff;
+        }
+
+        .clear-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Parent Page Test (Localhost)</h1>
+
+        <div class="config">
+            <h2>Configuration</h2>
+            <label for="iframe-url">Remote Iframe URL:</label>
+            <input
+                type="text"
+                id="iframe-url"
+                placeholder="https://yourdomain.github.io/login.html"
+                value="">
+
+            <label for="trusted-origin">Trusted Origin (where iframe is hosted):</label>
+            <input
+                type="text"
+                id="trusted-origin"
+                placeholder="https://yourdomain.github.io"
+                value="">
+
+            <button onclick="loadIframe()">Load Iframe</button>
+            <button onclick="testPostMessage()">Test Send Message to Iframe</button>
+        </div>
+
+        <div class="status">
+            <h2>Status</h2>
+            <div class="status-item">
+                <span class="status-label">Parent Origin:</span>
+                <span class="status-value" id="parent-origin">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Session Token:</span>
+                <span class="status-value" id="session-token">Not set</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Agreement Accepted:</span>
+                <span class="status-value" id="agreement-status">Not set</span>
+            </div>
+        </div>
+
+        <div class="iframe-container">
+            <h2>Login Iframe</h2>
+            <div id="iframe-wrapper">
+                <p style="color: #666;">Configure and click "Load Iframe" above to start</p>
+            </div>
+        </div>
+
+        <div>
+            <h2>Message Log</h2>
+            <button class="clear-btn" onclick="clearLog()">Clear Log</button>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Display parent origin
+        document.getElementById('parent-origin').textContent = window.location.origin;
+
+        let trustedOrigin = '';
+        let iframeWindow = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message)
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        function loadIframe() {
+            const iframeUrl = document.getElementById('iframe-url').value;
+            trustedOrigin = document.getElementById('trusted-origin').value;
+
+            if (!iframeUrl || !trustedOrigin) {
+                alert('Please enter both iframe URL and trusted origin');
+                return;
+            }
+
+            // Add origin parameter to iframe URL
+            const separator = iframeUrl.includes('?') ? '&' : '?';
+            const fullUrl = `${iframeUrl}${separator}origin=${encodeURIComponent(window.location.origin)}`;
+
+            const wrapper = document.getElementById('iframe-wrapper');
+            wrapper.innerHTML = `<iframe id="login-iframe" src="${fullUrl}"></iframe>`;
+
+            iframeWindow = document.getElementById('login-iframe').contentWindow;
+
+            log(`Loading iframe from: ${iframeUrl}`, 'info');
+            log(`Trusted origin set to: ${trustedOrigin}`, 'info');
+            log(`Parent origin passed as: ${window.location.origin}`, 'info');
+        }
+
+        function testPostMessage() {
+            if (!iframeWindow) {
+                alert('Load iframe first');
+                return;
+            }
+
+            iframeWindow.postMessage({
+                type: 'TEST_MESSAGE',
+                message: 'Hello from parent!'
+            }, trustedOrigin);
+
+            log('Sent test message to iframe', 'info');
+        }
+
+        // Listen for messages from iframe
+        window.addEventListener('message', (event) => {
+            log(`Received message from: ${event.origin}`, 'info');
+
+            // Verify origin
+            if (event.origin !== trustedOrigin) {
+                log(`⚠️ BLOCKED: Message from untrusted origin: ${event.origin}`, 'warning');
+                return;
+            }
+
+            log(`Message type: ${event.data.type}`, 'info');
+            log(`Message data: ${JSON.stringify(event.data)}`, 'info');
+
+            const { type, token, accepted, redirectUrl } = event.data;
+
+            switch(type) {
+                case 'LOGIN_SUCCESS':
+                    log('✅ LOGIN SUCCESS!', 'success');
+                    log(`Token received: ${token}`, 'success');
+
+                    // Store token in cookie
+                    document.cookie = `session=${token}; secure; SameSite=Lax; Path=/`;
+                    document.getElementById('session-token').textContent = token;
+
+                    // Would normally redirect here
+                    if (redirectUrl) {
+                        log(`Would redirect to: ${redirectUrl}`, 'success');
+                        // Uncomment to actually redirect:
+                        // setTimeout(() => window.location.href = redirectUrl, 2000);
+                    }
+                    break;
+
+                case 'REQUEST_AGREEMENT_STATE':
+                    log('Iframe requested agreement state', 'info');
+                    const agreementAccepted = localStorage.getItem('acceptEndUserLicenseAgreementV2');
+
+                    iframeWindow.postMessage({
+                        type: 'AGREEMENT_STATE_RESPONSE',
+                        accepted: agreementAccepted === 'true'
+                    }, trustedOrigin);
+
+                    log(`Sent agreement state: ${agreementAccepted === 'true'}`, 'success');
+                    break;
+
+                case 'AGREEMENT_ACCEPTED':
+                    log(`Agreement ${accepted ? 'accepted' : 'rejected'}`, 'info');
+                    if (accepted) {
+                        localStorage.setItem('acceptEndUserLicenseAgreementV2', 'true');
+                        document.getElementById('agreement-status').textContent = 'Accepted';
+                    } else {
+                        localStorage.removeItem('acceptEndUserLicenseAgreementV2');
+                        document.getElementById('agreement-status').textContent = 'Not accepted';
+                    }
+                    break;
+
+                default:
+                    log(`Unknown message type: ${type}`, 'warning');
+            }
+        });
+
+        // Initial log
+        log('Parent page loaded and ready', 'success');
+        log('Waiting for configuration...', 'info');
+
+        // Check for existing agreement state
+        const existingAgreement = localStorage.getItem('acceptEndUserLicenseAgreementV2');
+        if (existingAgreement === 'true') {
+            document.getElementById('agreement-status').textContent = 'Accepted';
+        }
+    </script>
+</body>
+</html>
