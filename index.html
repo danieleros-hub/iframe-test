@@ -232,7 +232,7 @@
             const fullUrl = `${iframeUrl}${separator}origin=${encodeURIComponent(window.location.origin)}`;
 
             const wrapper = document.getElementById('iframe-wrapper');
-            wrapper.innerHTML = `<iframe id="login-iframe" src="${fullUrl}"></iframe>`;
+            wrapper.innerHTML = `<iframe id="login-iframe" src="${fullUrl}" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
 
             iframeWindow = document.getElementById('login-iframe').contentWindow;
 
@@ -276,7 +276,7 @@
                     log(`Token received: ${token}`, 'success');
 
                     // Store token in cookie
-                    document.cookie = `session=${token}; secure; SameSite=Lax; Path=/`;
+                    // document.cookie = `session=${token}; secure; SameSite=Lax; Path=/`;
                     document.getElementById('session-token').textContent = token;
 
                     // Would normally redirect here
