@@ -259,11 +259,11 @@
         window.addEventListener('message', (event) => {
             log(`Received message from: ${event.origin}`, 'info');
 
-            // Verify origin
-            if (event.origin !== trustedOrigin || event.origin !== 'https://leoshape-auth.leopoly.com') {
-                log(`⚠️ BLOCKED: Message from untrusted origin: ${event.origin}`, 'warning');
-                return;
-            }
+            // // Verify origin
+            // if (event.origin !== trustedOrigin || event.origin !== 'https://leoshape-auth.leopoly.com') {
+            //     log(`⚠️ BLOCKED: Message from untrusted origin: ${event.origin}`, 'warning');
+            //     return;
+            // }
 
             log(`Message type: ${event.data.type}`, 'info');
             log(`Message data: ${JSON.stringify(event.data)}`, 'info');
